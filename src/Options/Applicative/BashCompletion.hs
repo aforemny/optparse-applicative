@@ -15,7 +15,8 @@ module Options.Applicative.BashCompletion
 import Control.Applicative
 import Prelude
 import Data.Foldable ( asum )
-import Data.List ( isPrefixOf )
+import Data.List ( isPrefixOf, nubBy )
+import Data.List.Split ( keepDelimsR, onSublist, split )
 import Data.Maybe ( fromMaybe, listToMaybe )
 
 import Options.Applicative.Builder
@@ -101,12 +102,12 @@ bashCompletionQuery pinfo pprefs richness ws i _ = case runCompletion compl ppre
     opt_completions argPolicy reachability opt = case optMain opt of
       OptReader ns _ _
          | argPolicy /= AllPositionals
-        -> return . add_opt_help opt $ show_names ns
+        -> return . add_opt_help opt $ map (<> " ") $ show_names ns
          | otherwise
         -> return []
       FlagReader ns _
          | argPolicy /= AllPositionals
-        -> return . add_opt_help opt $ show_names ns
+        -> return . add_opt_help opt $ map (<> " ") $ show_names ns
          | otherwise
         -> return []
       ArgReader rdr
@@ -118,7 +119,7 @@ bashCompletionQuery pinfo pprefs richness ws i _ = case runCompletion compl ppre
          | argumentIsUnreachable reachability
         -> return []
          | otherwise
-        -> return . add_cmd_help p $ filter_names ns
+        -> return . add_cmd_help p $ map (<> " ") $ filter_names ns
 
     -- When doing enriched completions, add any help specified
     -- to the completion variables (tab separated).
@@ -158,7 +159,23 @@ bashCompletionQuery pinfo pprefs richness ws i _ = case runCompletion compl ppre
     filter_names = filter is_completion
 
     run_completer :: Completer -> IO [String]
-    run_completer c = runCompleter c (fromMaybe "" (listToMaybe ws''))
+    run_completer c =
+      let input = unquote (fromMaybe "" (listToMaybe ws''))
+      in map quote
+        . nubBy isPrefixOf
+        . filter (/= input)
+        . filter (input `isPrefixOf`)
+        . concatMap (scanl1 (<>) . (split . keepDelimsR . onSublist) "/" . (<> " "))
+        <$> runCompleter c input
+
+    unquote ('\\' : []) = []
+    unquote [] = []
+    unquote ('\\' : (c : cs)) = c : unquote cs
+    unquote (c : cs) = c : unquote cs
+
+    quote [] = []
+    quote (':' : cs) = '\\' : ':' : quote cs
+    quote (c : cs) = c : quote cs
 
     (ws', ws'') = splitAt i ws
 
@@ -184,7 +201,7 @@ bashCompletionScript prog progn = unlines
   , "    COMPREPLY=( $(" ++ prog ++ " \"${CMDLINE[@]}\") )"
   , "}"
   , ""
-  , "complete -o filenames -F _" ++ progn ++ " " ++ progn ]
+  , "complete -o nospace -F _" ++ progn ++ " " ++ progn ]
 
 {-
 /Note/: Fish Shell
