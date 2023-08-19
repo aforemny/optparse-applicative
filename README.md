@@ -1,7 +1,6 @@
 # optparse-applicative
 
 [![Continuous Integration status][status-png]][status]
-[![Hackage matrix][hackage-matrix-png]][hackage-matrix]
 [![Hackage page (downloads and API reference)][hackage-png]][hackage]
 [![Hackage-Deps][hackage-deps-png]][hackage-deps]
 
@@ -75,7 +74,6 @@ Here's a simple example of a parser.
 
 ```haskell
 import Options.Applicative
-import Data.Semigroup ((<>))
 
 data Sample = Sample
   { hello      :: String
@@ -303,7 +301,14 @@ Having `Applicative` and `Alternative` instances, optparse-applicative
 parsers are also able to be composed with standard combinators. For
 example: `optional :: Alternative f => f a -> f (Maybe a)` will
 mean the user is not required to provide input for the affected
-`Parser`.
+`Parser`. For example, the following parser will return `Nothing`
+instead of failing if the user doesn't supply an `output` option:
+
+```haskell
+optional $ strOption
+  ( long "output"
+ <> metavar "DIRECTORY" )
+```
 
 ### Running parsers
 
@@ -527,22 +532,6 @@ functions, each with its own set of options, and possibly some
 global options that apply to all of them. Typical examples are
 version control systems like `git`, or build tools like `cabal`.
 
-A command can be created using the `subparser` builder (or `hsubparser`,
-which is identical but for an additional `--help` option on each
-command), and commands can be added with the `command` modifier.
-For example
-
-```haskell
-subparser
-  ( command "add" (info addOptions ( progDesc "Add a file to the repository" ))
- <> command "commit" (info commitOptions ( progDesc "Record changes to the repository" ))
-  )
-```
-
-Each command takes a full `ParserInfo` structure, which will be
-used to extract a description for this command when generating a
-help text.
-
 Note that all the parsers appearing in a command need to have the
 same type.  For this reason, it is often best to use a sum type
 which has the same structure as the command itself. For example,
@@ -558,6 +547,22 @@ data Command
   | Commit CommitOptions
   ...
 ```
+
+A command can then be created using the `subparser` builder (or
+`hsubparser`, which is identical but for an additional `--help` option
+on each command), and commands can be added with the `command`
+modifier. For example,
+
+```haskell
+subparser
+  ( command "add" (info addCommand ( progDesc "Add a file to the repository" ))
+ <> command "commit" (info commitCommand ( progDesc "Record changes to the repository" ))
+  )
+```
+
+Each command takes a full `ParserInfo` structure, which will be
+used to extract a description for this command when generating a
+help text.
 
 Alternatively, you can directly return an `IO` action from a parser,
 and execute it using `join` from `Control.Monad`.
@@ -701,6 +706,11 @@ main = customExecParser p opts
     p = prefs disambiguate
 
 ```
+
+**Note**. If an option name is a prefix of another option, then it
+will never be matched when disambiguation is on. See
+[#419](https://github.com/pcapriotti/optparse-applicative/issues/419)
+for more details.
 
 ### Customising the help screen
 
@@ -1013,13 +1023,11 @@ simplified implementation.
  [blog]: http://paolocapriotti.com/blog/2012/04/27/applicative-option-parser/
  [hackage]: http://hackage.haskell.org/package/optparse-applicative
  [hackage-png]: http://img.shields.io/hackage/v/optparse-applicative.svg
- [hackage-matrix]: https://matrix.hackage.haskell.org/package/optparse-applicative
- [hackage-matrix-png]: https://matrix.hackage.haskell.org/api/v2/packages/optparse-applicative/badge
  [hackage-deps]: http://packdeps.haskellers.com/reverse/optparse-applicative
  [hackage-deps-png]: https://img.shields.io/hackage-deps/v/optparse-applicative.svg
  [monoid]: http://hackage.haskell.org/package/base/docs/Data-Monoid.html
  [semigroup]: http://hackage.haskell.org/package/base/docs/Data-Semigroup.html
  [parsec]: http://hackage.haskell.org/package/parsec
- [status]: http://travis-ci.org/pcapriotti/optparse-applicative?branch=master
- [status-png]: https://api.travis-ci.org/pcapriotti/optparse-applicative.svg?branch=master
+ [status]: https://github.com/pcapriotti/optparse-applicative/actions/workflows/haskell-ci.yml
+ [status-png]: https://github.com/pcapriotti/optparse-applicative/workflows/Haskell-CI/badge.svg
  [ansi-wl-pprint]: http://hackage.haskell.org/package/ansi-wl-pprint

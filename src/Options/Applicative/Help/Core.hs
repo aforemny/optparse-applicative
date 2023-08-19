@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-}
 module Options.Applicative.Help.Core (
   cmdDesc,
   briefDesc,
@@ -9,6 +11,7 @@ module Options.Applicative.Help.Core (
   headerHelp,
   suggestionsHelp,
   usageHelp,
+  descriptionHelp,
   bodyHelp,
   footerHelp,
   globalsHelp,
@@ -22,9 +25,13 @@ import Control.Monad (guard)
 import Data.Function (on)
 import Data.List (sort, intersperse, groupBy)
 import Data.Foldable (any, foldl')
-import Data.Maybe (maybeToList, catMaybes, fromMaybe)
+import Data.Maybe (catMaybes, fromMaybe, maybeToList)
+#if !MIN_VERSION_base(4,8,0)
 import Data.Monoid (mempty)
+#endif
+#if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup (Semigroup (..))
+#endif
 import Prelude hiding (any)
 
 import Options.Applicative.Common
@@ -83,14 +90,14 @@ optDesc pprefs style _reachability opt =
    in (modified, wrapping)
 
 -- | Generate descriptions for commands.
-cmdDesc :: Parser a -> [(Maybe String, Chunk Doc)]
-cmdDesc = mapParser desc
+cmdDesc :: ParserPrefs -> Parser a -> [(Maybe String, Chunk Doc)]
+cmdDesc pprefs = mapParser desc
   where
     desc _ opt =
       case optMain opt of
         CmdReader gn cmds p ->
           (,) gn $
-            tabulate
+            tabulate (prefTabulateFill pprefs)
               [ (string cmd, align (extractChunk d))
                 | cmd <- reverse cmds,
                   d <- maybeToList . fmap infoProgDesc $ p cmd
@@ -188,7 +195,7 @@ globalDesc = optionsDesc True
 
 -- | Common generator for full descriptions and globals
 optionsDesc :: Bool -> ParserPrefs -> Parser a -> Chunk Doc
-optionsDesc global pprefs = tabulate . catMaybes . mapParser doc
+optionsDesc global pprefs = tabulate (prefTabulateFill pprefs) . catMaybes . mapParser doc
   where
     doc info opt = do
       guard . not . isEmpty $ n
@@ -220,6 +227,9 @@ globalsHelp chunk = mempty { helpGlobals = chunk }
 usageHelp :: Chunk Doc -> ParserHelp
 usageHelp chunk = mempty { helpUsage = chunk }
 
+descriptionHelp :: Chunk Doc -> ParserHelp
+descriptionHelp chunk = mempty { helpDescription = chunk }
+
 bodyHelp :: Chunk Doc -> ParserHelp
 bodyHelp chunk = mempty { helpBody = chunk }
 
@@ -234,7 +244,7 @@ parserHelp pprefs p =
       : (group_title <$> cs)
   where
     def = "Available commands:"
-    cs = groupBy ((==) `on` fst) $ cmdDesc p
+    cs = groupBy ((==) `on` fst) $ cmdDesc pprefs p
 
     group_title a@((n, _) : _) =
       with_title (fromMaybe def n) $
@@ -256,11 +266,12 @@ parserGlobals pprefs p =
 -- | Generate option summary.
 parserUsage :: ParserPrefs -> Parser a -> String -> Doc
 parserUsage pprefs p progn =
-  hsep
-    [ string "Usage:",
-      string progn,
-      align (extractChunk (briefDesc pprefs p))
-    ]
+  group $
+    hsep
+      [ string "Usage:",
+        string progn,
+        hangAtIfOver 9 35 (extractChunk (briefDesc pprefs p))
+      ]
 
 -- | Peek at the structure of the rendered tree within.
 --

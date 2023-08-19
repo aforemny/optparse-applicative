@@ -1,3 +1,30 @@
+## Version 0.17.1.0 (21 May 2023)
+
+- Widen bounds for `ansi-wl-pprint`. This supports the use of `prettyprinter`
+  in a non-breaking way, as the `ansi-wl-pprint > 1.0` support the newer
+  library.
+
+- Export `helpIndent` from `Options.Applicative`.
+
+- Export completion script generators from `Options.Applicative.BashCompletion`.
+
+- Add `simpleVersioner` utility for adding a '--version' option to a parser.
+
+- Improve documentation.
+
+## Version 0.17.0.0 (1 Feb 2022)
+
+- Make tabulation width configurable in usage texts.
+
+- Separate program name and description in ParserHelp type.
+
+- Add `helperWith` function, which can be easily used to
+  localize the help flag.
+
+- Improve usage texts when command names are long.
+
+- Improve Documentation.
+
 ## Version 0.16.1.0 (21 Nov 2020)
 
 - Guard `process` dependency behind an on by default flag.

@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-
 module Options.Applicative.Builder (
   -- * Parser builders
   --
@@ -89,6 +88,7 @@ module Options.Applicative.Builder (
   columns,
   helpLongEquals,
   helpShowGlobals,
+  helpIndent,
   prefs,
   defaultPrefs,
 
@@ -219,7 +219,7 @@ hidden = optionMod $ \p ->
 --
 -- /NOTE/: This builder is more flexible than its name and example
 -- allude. One of the motivating examples for its addition was to
--- used `const` to completely replace the usage text of an option.
+-- use `const` to completely replace the usage text of an option.
 style :: ( Doc -> Doc ) -> Mod f a
 style x = optionMod $ \p ->
   p { propDescMod = Just x }
@@ -273,6 +273,11 @@ completer f = fieldMod $ modCompleter (`mappend` f)
 
 -- | Builder for a command parser. The 'command' modifier can be used to
 -- specify individual commands.
+--
+-- By default, sub-parsers allow backtracking to their parent's options when
+-- they are completed. To allow full mixing of parent and sub-parser options,
+-- turn on 'subparserInline'; otherwise, to disable backtracking completely,
+-- use 'noBacktrack'.
 subparser :: Mod CommandFields a -> Parser a
 subparser m = mkParser d g rdr
   where
@@ -385,7 +390,7 @@ instance Monoid (InfoMod a) where
 instance Semigroup (InfoMod a) where
   m1 <> m2 = InfoMod $ applyInfoMod m2 . applyInfoMod m1
 
--- | Show a full description in the help text of this parser.
+-- | Show a full description in the help text of this parser (default).
 fullDesc :: InfoMod a
 fullDesc = InfoMod $ \i -> i { infoFullDesc = True }
 
@@ -517,9 +522,14 @@ columns cols = PrefsMod $ \p -> p { prefColumns = cols }
 helpLongEquals :: PrefsMod
 helpLongEquals = PrefsMod $ \p -> p { prefHelpLongEquals = True }
 
--- | Show global help information in subparser usage
+-- | Show global help information in subparser usage.
 helpShowGlobals :: PrefsMod
-helpShowGlobals = PrefsMod $ \p -> p { prefHelpShowGlobal = True}
+helpShowGlobals = PrefsMod $ \p -> p { prefHelpShowGlobal = True }
+
+-- | Set fill width in help text presentation.
+helpIndent :: Int -> PrefsMod
+helpIndent w = PrefsMod $ \p -> p { prefTabulateFill = w }
+
 
 
 -- | Create a `ParserPrefs` given a modifier
@@ -534,7 +544,8 @@ prefs m = applyPrefsMod m base
       , prefBacktrack = Backtrack
       , prefColumns = 80
       , prefHelpLongEquals = False
-      , prefHelpShowGlobal = False }
+      , prefHelpShowGlobal = False
+      , prefTabulateFill = 24 }
 
 -- Convenience shortcuts
 

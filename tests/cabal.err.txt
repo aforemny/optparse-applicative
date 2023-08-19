@@ -1,4 +1,5 @@
 Usage: cabal configure [--enable-tests] [-f|--flags FLAGS]
+
   Prepare to build the package
 
 Available options:
@@ -8,4 +9,4 @@ Available options:
 
 Global options:
   -v,--verbose LEVEL       Set verbosity to LEVEL
-  --version                Print version information
+  --version                Show version information

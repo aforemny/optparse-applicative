@@ -9,6 +9,7 @@ import qualified Examples.Commands as Commands
 import qualified Examples.Cabal as Cabal
 import qualified Examples.Alternatives as Alternatives
 import qualified Examples.Formatting as Formatting
+import qualified Examples.LongSub as LongSub
 
 import           Control.Applicative
 import           Control.Monad
@@ -891,15 +892,26 @@ prop_help_unknown_context = once $
     post = run i ["--help", "not-a-command"]
   in grabHelpMessage pre === grabHelpMessage post
 
+
+prop_long_command_line_flow :: Property
+prop_long_command_line_flow = once $
+  let p = LongSub.sample <**> helper
+      i = info p
+        ( progDesc (concat
+            [ "This is a very long program description. "
+            , "This text should be automatically wrapped "
+            , "to fit the size of the terminal" ]) )
+  in checkHelpTextWith ExitSuccess (prefs (columns 50)) "formatting-long-subcommand" i ["hello-very-long-sub", "--help"]
+
+
 ---
 
 deriving instance Arbitrary a => Arbitrary (Chunk a)
-deriving instance Eq SimpleDoc
-deriving instance Show SimpleDoc
+
 
 equalDocs :: Float -> Int -> Doc -> Doc -> Property
-equalDocs f w d1 d2 = Doc.renderPretty f w d1
-                  === Doc.renderPretty f w d2
+equalDocs f w d1 d2 = Doc.displayS (Doc.renderPretty f w d1) ""
+                  === Doc.displayS (Doc.renderPretty f w d2) ""
 
 prop_listToChunk_1 :: [String] -> Property
 prop_listToChunk_1 xs = isEmpty (listToChunk xs) === null xs

@@ -74,6 +74,7 @@ module Options.Applicative (
   abortOption,
   infoOption,
   helper,
+  simpleVersioner,
 
   -- ** Modifiers
   --
@@ -197,6 +198,7 @@ module Options.Applicative (
   columns,
   helpLongEquals,
   helpShowGlobals,
+  helpIndent,
   defaultPrefs,
 
   -- * Completions

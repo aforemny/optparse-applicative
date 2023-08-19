@@ -4,7 +4,9 @@ module Options.Applicative.Extra (
   --
   -- | This module contains high-level functions to run parsers.
   helper,
+  helperWith,
   hsubparser,
+  simpleVersioner,
   execParser,
   customExecParser,
   execParserPure,
@@ -47,16 +49,32 @@ import Options.Applicative.Types
 
 helper :: Parser (a -> a)
 helper =
+  helperWith (mconcat [
+    long "help",
+    short 'h',
+    help "Show this help text"
+  ])
+
+-- | Like helper, but with a minimal set of modifiers that can be extended
+-- as desired.
+--
+-- > opts :: ParserInfo Sample
+-- > opts = info (sample <**> helperWith (mconcat [
+-- >          long "help",
+-- >          short 'h',
+-- >          help "Show this help text",
+-- >          hidden
+-- >        ])) mempty
+helperWith :: Mod OptionFields (a -> a) -> Parser (a -> a)
+helperWith modifiers =
   option helpReader $
     mconcat
-      [ long "help",
-        short 'h',
-        help "Show this help text",
-        value id,
+      [ value id,
         metavar "",
         noGlobal,
         noArgError (ShowHelpText Nothing),
-        hidden
+        hidden,
+        modifiers
       ]
   where
     helpReader = do
@@ -75,6 +93,19 @@ hsubparser m = mkParser d g rdr
     rdr = CmdReader groupName cmds (fmap add_helper . subs)
     add_helper pinfo = pinfo
       { infoParser = infoParser pinfo <**> helper }
+
+-- | A hidden \"--version\" option that displays the version.
+--
+-- > opts :: ParserInfo Sample
+-- > opts = info (sample <**> simpleVersioner "v1.2.3") mempty
+simpleVersioner :: String -- ^ Version string to be shown
+                -> Parser (a -> a)
+simpleVersioner version = infoOption version $
+  mconcat
+    [ long "version"
+    , help "Show version information"
+    , hidden
+    ]
 
 -- | Run a program description.
 --
@@ -136,7 +167,7 @@ execParserPure pprefs pinfo args =
 --
 -- This function can be used, for example, to show the help text for a parser:
 --
--- @handleParseResult . Failure $ parserFailure pprefs pinfo ShowHelpText mempty@
+-- @handleParseResult . Failure $ parserFailure pprefs pinfo (ShowHelpText Nothing) mempty@
 parserFailure :: ParserPrefs -> ParserInfo a
               -> ParseError -> [Context]
               -> ParserFailure ParserHelp
@@ -197,9 +228,10 @@ parserFailure pprefs pinfo msg ctx0 = ParserFailure $ \progn ->
       InfoMsg _
         -> mempty
       _
-        -> usageHelp $ vcatChunks
-          [ pure . parserUsage pprefs (infoParser i) . unwords $ progn : names
-          , fmap (indent 2) . infoProgDesc $ i ]
+        -> mconcat [
+            usageHelp (pure . parserUsage pprefs (infoParser i) . unwords $ progn : names)
+          , descriptionHelp (infoProgDesc i)
+          ]
 
     error_help = errorHelp $ case msg of
       ShowHelpText {}
